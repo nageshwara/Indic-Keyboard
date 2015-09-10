@@ -16,19 +16,21 @@
 
 package org.smc.inputmethod.indic;
 
+import android.text.TextUtils;
+
 import com.android.inputmethod.latin.PrevWordsInfo;
 
 import org.smc.ime.InputMethod;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import android.util.Log;
 
 import javax.annotation.Nonnull;
 
 import org.smc.inputmethod.event.CombinerChain;
 import org.smc.inputmethod.event.Event;
 import org.smc.inputmethod.indic.define.DebugFlags;
+
 import com.android.inputmethod.latin.utils.CoordinateUtils;
 import com.android.inputmethod.latin.utils.StringUtils;
 
@@ -64,6 +66,8 @@ public final class WordComposer {
     // as an ad-hockery here.
     private String mRejectedBatchModeSuggestion;
     private InputMethod mTransliterationMethod;
+    private String mPreviousTransliterationReplacement = null;
+    private String mPreviousTransliterationReplaced = null;
 
     // Cache these values for performance
     private CharSequence mTypedWordCache;
@@ -125,7 +129,13 @@ public final class WordComposer {
         mIsBatchMode = false;
         mCursorPositionWithinWord = 0;
         mRejectedBatchModeSuggestion = null;
+        mPreviousTransliterationReplacement = null;
+        mPreviousTransliterationReplaced = null;
         refreshTypedWordCache();
+
+        if (mTransliterationMethod != null) {
+            mTransliterationMethod.reset();
+        }
     }
 
     private final void refreshTypedWordCache() {
@@ -155,7 +165,11 @@ public final class WordComposer {
             final int[] destination) {
         // This method can be called on a separate thread and mTypedWordCache can change while we
         // are executing this method.
-        final String typedWord = mTypedWordCache.toString();
+        String typedWord = mTypedWordCache.toString();
+        if (mTransliterationMethod != null) {
+            typedWord = mTransliterationMethod.prepareForSuggestions(typedWord);
+        }
+
         // lastIndex is exclusive
         final int lastIndex = typedWord.length()
                 - StringUtils.getTrailingSingleQuotesCount(typedWord);
@@ -211,7 +225,19 @@ public final class WordComposer {
         return length - 1; // Default
     }
 
-    private String context = "";
+    static int firstDivergenceFromBack(String str1, String str2) {
+        int str1Length = str1.length();
+        int str2Length = str2.length();
+        int length = str1Length > str2Length ? str2Length : str1Length;
+        int i = 0;
+        for (; i < length; i++) {
+            if (str1.charAt(str1Length - i - 1) != str2.charAt(str2Length - i - 1)) {
+                break;
+            }
+        }
+        return i;
+    }
+
     public void applyTransliteration(final Event event) {
         final int primaryCode = event.mCodePoint;
 
@@ -219,20 +245,34 @@ public final class WordComposer {
 
         String mTypedWord = mTypedWordCache.toString();
 
-        if(mTransliterationMethod != null && Constants.CODE_DELETE != event.mKeyCode) {
-            String current = new String(Character.toChars(primaryCode));
-            int startPos = mTypedWord.length() - 1 > mTransliterationMethod.getMaxKeyLength() ? mTypedWord.length() - mTransliterationMethod.getMaxKeyLength() - 1: 0;
-            String input = mTypedWord.subSequence(startPos, mTypedWord.length()).toString();
-            String replacement = mTransliterationMethod.transliterate(input, context, false);
+        if(mTransliterationMethod != null) {
+            if (Constants.CODE_DELETE != event.mKeyCode) {
+                char[] currentChars = Character.toChars(primaryCode);
+                int startPos = mTypedWord.length() - 1 > mTransliterationMethod.getMaxKeyLength() ? mTypedWord.length() - mTransliterationMethod.getMaxKeyLength() - 1 : 0;
+                String input = mTypedWord.subSequence(startPos, mTypedWord.length()).toString();
+                String replacement = mTransliterationMethod.transliterate(input, false);
 
-            int divIndex = firstDivergence(input, replacement);
-            replacement = replacement.substring(divIndex);
+                int divIndex = firstDivergence(input, replacement);
+                replacement = replacement.substring(divIndex);
 
-            mCombinerChain.replace(startPos + divIndex, mTypedWord.length(), replacement);
-
-            context += current;
-            if(context.length() > mTransliterationMethod.getContextLength()) {
-                context = context.substring(context.length() - mTransliterationMethod.getContextLength());
+                mPreviousTransliterationReplaced = mTypedWord.substring(startPos + divIndex, mTypedWord.length());
+                mCombinerChain.replace(startPos + divIndex, mTypedWord.length(), replacement);
+                mPreviousTransliterationReplacement = replacement;
+                mTransliterationMethod.appendCharacters(currentChars);
+            } else if (!TextUtils.isEmpty(mPreviousTransliterationReplaced) ||
+                    !TextUtils.isEmpty(mPreviousTransliterationReplacement)) {
+                // CODE_DELETE is kind of undo. remove all the previous replacement.
+                String replacement = mPreviousTransliterationReplaced.length() > 1 ?
+                        mPreviousTransliterationReplaced.substring(0, mPreviousTransliterationReplaced.length() - 1) : "";
+                String toBeReplaced = mPreviousTransliterationReplacement.substring(0,
+                        mPreviousTransliterationReplacement.length() - 1);
+                if (!TextUtils.isEmpty(replacement) || !TextUtils.isEmpty(toBeReplaced)) {
+                    int divIndex = firstDivergenceFromBack(mTypedWord, toBeReplaced);
+                    mCombinerChain.replace(mTypedWord.length() - divIndex, mTypedWord.length(), replacement);
+                }
+                mTransliterationMethod.deleteCharacterAt(-1);
+                mPreviousTransliterationReplacement = null;
+                mPreviousTransliterationReplaced = null;
             }
         }
     }
@@ -285,6 +325,11 @@ public final class WordComposer {
     public void setCursorPositionWithinWord(final int posWithinWord) {
         mCursorPositionWithinWord = posWithinWord;
         // TODO: compute where that puts us inside the events
+
+        // We will lose the context if the user moves the cursor.
+        if (mTransliterationMethod != null) {
+            mTransliterationMethod.reset();
+        }
     }
 
     public boolean isCursorFrontOrMiddleOfComposingWord() {
@@ -311,6 +356,7 @@ public final class WordComposer {
         int cursorPos = mCursorPositionWithinWord;
         // TODO: Don't make that copy. We can do this directly from mTypedWordCache.
         final int[] codePoints = StringUtils.toCodePointArray(mTypedWordCache);
+
         if (expectedMoveAmount >= 0) {
             // Moving the cursor forward for the expected amount or until the end of the word has
             // been reached, whichever comes first.
@@ -330,6 +376,12 @@ public final class WordComposer {
         // so the result would not be inside the composing word.
         if (actualMoveAmountWithinWord != expectedMoveAmount) return false;
         mCursorPositionWithinWord = cursorPos;
+
+        // We will lose the context if the user moves the cursor.
+        if (mTransliterationMethod != null) {
+            mTransliterationMethod.reset();
+        }
+
         return true;
     }
 
@@ -500,6 +552,11 @@ public final class WordComposer {
                 && type != LastComposedWord.COMMIT_TYPE_MANUAL_PICK) {
             lastComposedWord.deactivate();
         }
+
+        if (mTransliterationMethod != null) {
+            mTransliterationMethod.reset();
+        }
+
         mCapsCount = 0;
         mDigitsCount = 0;
         mIsBatchMode = false;
@@ -513,6 +570,8 @@ public final class WordComposer {
         mCursorPositionWithinWord = 0;
         mIsResumed = false;
         mRejectedBatchModeSuggestion = null;
+        mPreviousTransliterationReplacement = null;
+        mPreviousTransliterationReplaced = null;
         return lastComposedWord;
     }
 
@@ -526,7 +585,13 @@ public final class WordComposer {
         mAutoCorrection = null; // This will be filled by the next call to updateSuggestion.
         mCursorPositionWithinWord = mCodePointSize;
         mRejectedBatchModeSuggestion = null;
+        mPreviousTransliterationReplacement = null;
+        mPreviousTransliterationReplaced = null;
         mIsResumed = true;
+
+        if (mTransliterationMethod != null) {
+            mTransliterationMethod.reset();
+        }
     }
 
     public boolean isBatchMode() {

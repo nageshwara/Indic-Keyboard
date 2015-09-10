@@ -980,7 +980,7 @@ public final class InputLogic {
             }
 
             if (!shouldAvoidSendingCode) {
-                sendKeyCodePoint(settingsValues, codePoint, false);
+                sendKeyCodePoint(settingsValues, codePoint, isTransliteration);
             }
         } else {
             if ((SpaceState.PHANTOM == inputTransaction.mSpaceState
@@ -1001,7 +1001,7 @@ public final class InputLogic {
                 mSpaceState = SpaceState.PHANTOM;
             }
 
-            sendKeyCodePoint(settingsValues, codePoint, false);
+            sendKeyCodePoint(settingsValues, codePoint, isTransliteration);
 
             // Set punctuation right away. onUpdateSelection will fire but tests whether it is
             // already displayed or not, so it's okay.
@@ -1143,6 +1143,8 @@ public final class InputLogic {
                             mConnection.deleteSurroundingText(lengthToDeleteAgain, 0);
                         }
                     }
+
+
                 }
             }
             if (inputTransaction.mSettingsValues
@@ -2301,6 +2303,7 @@ public final class InputLogic {
             im = InputMethod.fromName(transliterationMethod, context);
             mWordComposer.setTransliterationMethod(im);
             mConnection.setTransliterationMethod(im);
+            mDictionaryFacilitator.setTransliterationMethod(im);
             isTransliteration = true;
         } catch (Exception e) {
             e.printStackTrace();

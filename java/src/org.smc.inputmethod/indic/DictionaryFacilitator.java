@@ -40,14 +40,14 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import com.android.inputmethod.latin.BinaryDictionary;
+
+import org.smc.ime.InputMethod;
 import org.smc.inputmethod.annotations.UsedForTesting;
-import org.smc.inputmethod.indic.Dictionary;
-import org.smc.inputmethod.indic.ExpandableBinaryDictionary;
 import org.smc.inputmethod.indic.SuggestedWords.SuggestedWordInfo;
-import org.smc.inputmethod.indic.WordComposer;
 import org.smc.inputmethod.indic.personalization.ContextualDictionary;
 import org.smc.inputmethod.indic.personalization.PersonalizationDataChunk;
 import org.smc.inputmethod.indic.personalization.PersonalizationDictionary;
+import org.smc.inputmethod.indic.personalization.TransliterationDictionary;
 import org.smc.inputmethod.indic.personalization.UserHistoryDictionary;
 import org.smc.inputmethod.indic.settings.SettingsValuesForSuggestion;
 import org.smc.inputmethod.indic.settings.SpacingAndPunctuations;
@@ -78,6 +78,7 @@ public class DictionaryFacilitator {
                 Dictionary.TYPE_USER_HISTORY,
                 Dictionary.TYPE_PERSONALIZATION,
                 Dictionary.TYPE_USER,
+                Dictionary.TYPE_APPLICATION_DEFINED,
                 Dictionary.TYPE_CONTACTS,
                 Dictionary.TYPE_CONTEXTUAL
             };
@@ -107,6 +108,7 @@ public class DictionaryFacilitator {
     private static class Dictionaries {
         public final Locale mLocale;
         private Dictionary mMainDict;
+        private Dictionary mApplicationDict;
         public final ConcurrentHashMap<String, ExpandableBinaryDictionary> mSubDictMap =
                 new ConcurrentHashMap<>();
 
@@ -116,9 +118,16 @@ public class DictionaryFacilitator {
 
         public Dictionaries(final Locale locale, final Dictionary mainDict,
                 final Map<String, ExpandableBinaryDictionary> subDicts) {
+            this(locale, mainDict, null /*appDict*/, subDicts);
+        }
+
+        public Dictionaries(final Locale locale, final Dictionary mainDict,
+                            final Dictionary appDict,
+                            final Map<String, ExpandableBinaryDictionary> subDicts) {
             mLocale = locale;
             // Main dictionary can be asynchronously loaded.
             setMainDict(mainDict);
+            setAppDict(appDict);
             for (final Map.Entry<String, ExpandableBinaryDictionary> entry : subDicts.entrySet()) {
                 setSubDict(entry.getKey(), entry.getValue());
             }
@@ -139,9 +148,15 @@ public class DictionaryFacilitator {
             }
         }
 
+        private void setAppDict(final Dictionary dict) {
+            mApplicationDict = dict;
+        }
+
         public Dictionary getDict(final String dictType) {
             if (Dictionary.TYPE_MAIN.equals(dictType)) {
                 return mMainDict;
+            } else if (Dictionary.TYPE_APPLICATION_DEFINED.equals(dictType)) {
+                return mApplicationDict;
             } else {
                 return getSubDict(dictType);
             }
@@ -154,6 +169,8 @@ public class DictionaryFacilitator {
         public boolean hasDict(final String dictType) {
             if (Dictionary.TYPE_MAIN.equals(dictType)) {
                 return mMainDict != null;
+            } else if (Dictionary.TYPE_APPLICATION_DEFINED.equals(dictType)) {
+                return mApplicationDict != null;
             } else {
                 return mSubDictMap.containsKey(dictType);
             }
@@ -163,6 +180,9 @@ public class DictionaryFacilitator {
             final Dictionary dict;
             if (Dictionary.TYPE_MAIN.equals(dictType)) {
                 dict = mMainDict;
+            } else if (Dictionary.TYPE_APPLICATION_DEFINED.equals(dictType)) {
+                dict = mApplicationDict;
+                mApplicationDict = null;
             } else {
                 dict = mSubDictMap.remove(dictType);
             }
@@ -211,6 +231,10 @@ public class DictionaryFacilitator {
             Log.e(TAG, "Cannot create dictionary: " + dictType, e);
             return null;
         }
+    }
+
+    public void setTransliterationMethod(InputMethod inputMethod) {
+        mDictionaries.setAppDict(TransliterationDictionary.getDictionary(inputMethod));
     }
 
     public void resetDictionaries(final Context context, final Locale newLocale,
@@ -268,7 +292,8 @@ public class DictionaryFacilitator {
         }
 
         // Replace Dictionaries.
-        final Dictionaries newDictionaries = new Dictionaries(newLocale, newMainDict, subDicts);
+        final Dictionaries newDictionaries = new Dictionaries(newLocale, newMainDict,
+                mDictionaries.getDict(Dictionary.TYPE_APPLICATION_DEFINED), subDicts);
         final Dictionaries oldDictionaries;
         synchronized (mLock) {
             oldDictionaries = mDictionaries;
@@ -496,6 +521,7 @@ public class DictionaryFacilitator {
     public SuggestionResults getSuggestionResults(final WordComposer composer,
             final PrevWordsInfo prevWordsInfo, final ProximityInfo proximityInfo,
             final SettingsValuesForSuggestion settingsValuesForSuggestion, final int sessionId) {
+
         final Dictionaries dictionaries = mDictionaries;
         final SuggestionResults suggestionResults = new SuggestionResults(
                 dictionaries.mLocale, SuggestedWords.MAX_SUGGESTIONS,

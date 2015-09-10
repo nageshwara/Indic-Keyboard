@@ -264,24 +264,20 @@ public final class RichInputConnection {
         return length - 1; // Default
     }
 
-    private String context = "";
     public void applyTransliteration(final CharSequence text, final int newCursorPosition) {
         String replacement = "";
 
         if(mTransliterationMethod != null && text.length() > 0 && !TextUtils.isEmpty(text)) {
             int startPos = mCommittedTextBeforeComposingText.length() > mTransliterationMethod.getMaxKeyLength() ? mCommittedTextBeforeComposingText.length() - mTransliterationMethod.getMaxKeyLength() : 0;
             String input = mCommittedTextBeforeComposingText.subSequence(startPos, mCommittedTextBeforeComposingText.length()).toString() + text;
-            replacement = mTransliterationMethod.transliterate(input, context, false);
+            replacement = mTransliterationMethod.transliterate(input, false);
 
 
             int divIndex = firstDivergence(input, replacement);
             deleteSurroundingText(input.length() - 1 - divIndex, 0);
             replacement = replacement.substring(divIndex);
 
-            context += text;
-            if(context.length() > mTransliterationMethod.getContextLength()) {
-                context = context.substring(context.length() - mTransliterationMethod.getContextLength());
-            }
+            mTransliterationMethod.appendCharacters(text);
         }
         commitTextWithBackgroundColor(replacement, newCursorPosition, Color.TRANSPARENT, replacement.length());
     }

@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+/*
+**
+** Copyright 2012, The Android Open Source Project
+**
+** Licensed under the Apache License, Version 2.0 (the "License");
+** you may not use this file except in compliance with the License.
+** You may obtain a copy of the License at
+**
+**     http://www.apache.org/licenses/LICENSE-2.0
+**
+** Unless required by applicable law or agreed to in writing, software
+** distributed under the License is distributed on an "AS IS" BASIS,
+** WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+** See the License for the specific language governing permissions and
+** limitations under the License.
+*/
+-->
+
+<merge
+    xmlns:latin="http://schemas.android.com/apk/res-auto"
+>
+    <Key
+        latin:keySpec="q|!pcode/C15"
+        latin:keyHintLabel="1"
+        latin:additionalMoreKeys="Q|!pcode/C15,1" />
+    <Key
+        latin:keySpec="w|!pcode/C35"
+        latin:keyHintLabel="2"
+        latin:additionalMoreKeys="W|!pcode/C35,2" />
+    <Key
+        latin:keySpec="e|!pcode/C46"
+        latin:keyHintLabel="3"
+        latin:additionalMoreKeys="E|!pcode/C47,3" />
+    <Key
+        latin:keySpec="r|!pcode/C30"
+        latin:keyHintLabel="4"
+        latin:additionalMoreKeys="R|!pcode/C31,4" />
+    <Key
+        latin:keySpec="t|!pcode/C1F"
+        latin:keyHintLabel="5"
+        latin:additionalMoreKeys="T|!pcode/C20,5" />
+    <Key
+        latin:keySpec="y|!pcode/C2F"
+        latin:keyHintLabel="6"
+        latin:additionalMoreKeys="Y|!pcode/C2F,6" />
+    <Key
+        latin:keySpec="u|!pcode/C41"
+        latin:keyHintLabel="7"
+        latin:additionalMoreKeys="U|!pcode/C42,7" />
+    <Key
+        latin:keySpec="i|!pcode/C3F"
+        latin:keyHintLabel="8"
+        latin:additionalMoreKeys="I|!pcode/C40,8" />
+    <Key
+        latin:keySpec="o|!pcode/C4A"
+        latin:keyHintLabel="9"
+        latin:additionalMoreKeys="O|!pcode/C4B,9" />
+    <Key
+        latin:keySpec="p|!pcode/C2A"
+        latin:keyHintLabel="0"
+        latin:additionalMoreKeys="P|!pcode/C2B,0" />
+</merge>

@@ -32,7 +32,7 @@
                 latin:keyStyle="settingsMoreKeysStyle" />
         </case>
         <case
-            latin:languageCode="ml|hi|as|kn|te"
+            latin:languageCode="ml|hi|as|kn"
             latin:keyboardLayoutSet="qwerty">
             <Key
                 latin:keySpec="~"

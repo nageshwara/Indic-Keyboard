@@ -24,7 +24,7 @@
     <switch>
         <!-- for transliteration -->
         <case
-            latin:languageCode="be|gu|hi|ml|or|ta|te"
+            latin:languageCode="be|gu|hi|ml|or|ta"
             latin:languageSwitchKeyEnabled="true"
             latin:keyboardLayoutSet="qwerty" >
             <Key
@@ -36,7 +36,7 @@
                 latin:keyStyle="zwnjKeyStyle" />
         </case>
         <case
-            latin:languageCode="ml|hi|as|kn|te"
+            latin:languageCode="ml|hi|as|kn"
             latin:languageSwitchKeyEnabled="false"
             latin:keyboardLayoutSet="qwerty" >
             <Key
@@ -50,7 +50,7 @@
              ne: Nepali
              te: Telugu -->
         <case
-            latin:languageCode="fa|kn|ne|te"
+            latin:languageCode="fa|kn|ne"
             latin:languageSwitchKeyEnabled="true"
         >
             <Key
@@ -62,7 +62,7 @@
                 latin:keyStyle="zwnjKeyStyle" />
         </case>
         <case
-            latin:languageCode="fa|kn|ne|te"
+            latin:languageCode="fa|kn|ne"
             latin:languageSwitchKeyEnabled="false"
         >
             <Key
